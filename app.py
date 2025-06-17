@@ -1,6 +1,7 @@
 import json
 from flask import Flask, request, jsonify
 import feedparser
+import requests
 
 app = Flask(__name__)
 
@@ -19,7 +20,20 @@ def webhook():
         })
 
     feed_info = feeds[fonte]
-    feed = feedparser.parse(feed_info["url"])
+    
+    try:
+        resp = requests.get(feed_info["url"], timeout=3)
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.content)
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "fulfillmentText": "O sistema está um pouco lento agora. Por favor, tenta outra vez daqui a pouco."
+        })
+    except Exception as e:
+        return jsonify({
+            "fulfillmentText": "Desculpa, ocorreu um erro ao buscar as informações. Tenta novamente mais tarde."
+        })
+        
     itens = feed.entries[:3]
 
     if not itens:
