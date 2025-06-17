@@ -21,7 +21,11 @@ def webhook():
     req = request.get_json()
     fonte = req.get("queryResult", {}).get("parameters", {}).get("fonte")
     
+    # Adicione logs aqui para ver o valor de 'fonte'
+    print(f"DEBUG: Fonte recebida: {fonte}")
+
     if fonte not in feeds:
+        print("DEBUG: Fonte não reconhecida.")
         return jsonify({
             "fulfillmentText": "❌ Fonte não reconhecida. Tenta perguntar por outra fonte de informação."
         })
@@ -33,10 +37,12 @@ def webhook():
         resp.raise_for_status()
         feed = feedparser.parse(resp.content)
     except requests.exceptions.Timeout:
+        print("DEBUG: Erro de Timeout.")
         return jsonify({
             "fulfillmentText": "⏰ O sistema está um pouco lento agora. Por favor, tenta outra vez daqui a pouco."
         })
     except Exception as e:
+        print(f"DEBUG: Erro ao buscar feed: {e}")
         return jsonify({
             "fulfillmentText": "❌ Desculpa, ocorreu um erro ao buscar as informações. Tenta novamente mais tarde."
         })
@@ -45,6 +51,7 @@ def webhook():
     
     if not itens:
         resposta = f"📭 Não encontrei atualizações recentes em:\n*{escape_markdown(feed_info['descricao'])}*"
+        print(f"DEBUG: Resposta (sem itens): {resposta}")
     else:
         lista = []
         for i, item in enumerate(itens, 1):
@@ -75,7 +82,9 @@ def webhook():
         
         # Rodapé com informação adicional
         resposta += f"\n\n📊 A mostrar as {len(itens)} notícias mais recentes"
-    
+        print(f"DEBUG: Resposta (com itens): {resposta}") # Log da resposta final
+
+    # *** MUDANÇA CRÍTICA AQUI ***
     return jsonify({
         "fulfillmentMessages": [
             {
@@ -89,6 +98,6 @@ def webhook():
             }
         ]
     })
-    
+
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True) # Adicione debug=True para ver logs no console
