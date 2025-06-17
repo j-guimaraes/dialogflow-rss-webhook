@@ -46,13 +46,13 @@ def webhook():
             data_str = "Data desconhecida"
     
             # Tenta extrair data publicada
-            if hasattr(item, 'published_parsed') and item.published_parsed:
+            if 'published_parsed' in item and item.published_parsed:
                 try:
                     dt = datetime(*item.published_parsed[:6])
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
-            elif hasattr(item, 'updated_parsed') and item.updated_parsed:
+            elif 'updated_parsed' in item and item.updated_parsed:
                 try:
                     dt = datetime(*item.updated_parsed[:6])
                     data_str = dt.strftime('%d/%m/%Y')
