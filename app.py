@@ -3,12 +3,18 @@ from flask import Flask, request, jsonify
 import feedparser
 import requests
 from datetime import datetime
+import html
 
 app = Flask(__name__)
 
 # Carrega feeds de um ficheiro externo
 with open("feeds.json", "r", encoding="utf-8") as f:
     feeds = json.load(f)
+
+def escape_markdown(text):
+    # Escapa os caracteres especiais para MarkdownV2 (Telegram)
+    escape_chars = r'_*[]()~`>#+-=|{}.!'
+    return ''.join(['\\' + c if c in escape_chars else c for c in text])
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -28,24 +34,21 @@ def webhook():
         feed = feedparser.parse(resp.content)
     except requests.exceptions.Timeout:
         return jsonify({
-            "fulfillmentText": "O sistema está um pouco lento agora. Por favor, tenta outra vez daqui a pouco."
+            "fulfillmentText": "⚠️ O sistema está um pouco lento agora\\. Por favor, tenta outra vez daqui a pouco\\."
         })
     except Exception as e:
         return jsonify({
-            "fulfillmentText": "Desculpa, ocorreu um erro ao buscar as informações. Tenta novamente mais tarde."
+            "fulfillmentText": "❌ Desculpa, ocorreu um erro ao buscar as informações\\. Tenta novamente mais tarde\\."
         })
-        
+
     itens = feed.entries[:3]
 
     if not itens:
-        resposta = f"Não encontrei atualizações em: {feed_info['descricao']}."
+        resposta = f"ℹ️ Não encontrei atualizações em: *{escape_markdown(feed_info['descricao'])}*"
     else:
         lista = []
         for item in itens:
-            # Define data padrão
             data_str = "Data desconhecida"
-    
-            # Tenta extrair data publicada
             if 'published_parsed' in item and item.published_parsed:
                 try:
                     dt = datetime(*item.published_parsed[:6])
@@ -58,12 +61,23 @@ def webhook():
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
-    
-            lista.append(f"- {item.title} (Artigo do dia: {data_str}): {item.link}")
-    
-        resposta = f"{feed_info['descricao']}:\n" + "\n".join(lista)
 
-    return jsonify({"fulfillmentText": resposta})
+            titulo = escape_markdown(item.title)
+            link = item.link
+            linha = f"✨ [{titulo}]({link})\n🗓️ {escape_markdown(data_str)}"
+            lista.append(linha)
+
+        resposta = f"*{escape_markdown(feed_info['descricao'])}*\n\n" + "\n\n".join(lista)
+
+    return jsonify({
+        "fulfillmentText": resposta,
+        "payload": {
+            "telegram": {
+                "text": resposta,
+                "parse_mode": "MarkdownV2"
+            }
+        }
+    })
 
 if __name__ == '__main__':
     app.run()
