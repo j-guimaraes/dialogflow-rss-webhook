@@ -3,96 +3,88 @@ from flask import Flask, request, jsonify
 import feedparser
 import requests
 from datetime import datetime
+import html
 
 app = Flask(__name__)
 
-# Feeds para RSS (exemplo, carrega do JSON se quiseres)
-feeds = {
-    "exemplo": {
-        "url": "https://news.google.com/rss/search?q=kiwi",
-        "descricao": "Notícias recentes sobre kiwis"
-    }
-}
+# Carrega feeds de um ficheiro externo
+with open("feeds.json", "r", encoding="utf-8") as f:
+    feeds = json.load(f)
 
-# Dados das empresas para o webhook "empresas"
-empresas_info = {
-    "zespri": {
-        "summary": "Zespri é a maior exportadora mundial de kiwis, com sede na Nova Zelândia.",
-        "localizacao": "Te Puke, Nova Zelândia",
-        "contactos": "Telefone: +64 7 573 2000 | Website: https://www.zespri.com"
-    },
-    "associacao portuguesa de kiwicultores": {
-        "summary": "Associação que representa os produtores portugueses de kiwi.",
-        "localizacao": "Portugal",
-        "contactos": "Email: info@apkiwi.pt | Website: https://www.apkiwi.pt"
-    },
-    "kiwi vine health": {
-        "summary": "Organização dedicada à saúde e pesquisa da vinha de kiwi na Nova Zelândia.",
-        "localizacao": "Te Puke, Nova Zelândia",
-        "contactos": "Website: https://www.kiwivinehealth.org.nz"
-    }
-}
+def escape_markdown(text):
+    # Escapa os caracteres especiais para MarkdownV2 (Telegram)
+    escape_chars = r'_*[]()~`>#+-=|{}.!'
+    return ''.join(['\\' + c if c in escape_chars else c for c in text])
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     req = request.get_json()
-    print("Parâmetros recebidos:", req.get("queryResult", {}).get("parameters", {}))
-
-    parametros = req.get("queryResult", {}).get("parameters", {})
-
-    # Verifica se veio "empresa"
-    empresa = parametros.get("empresa")
-    if empresa:
-        empresa = empresa.lower()
-        print("Pedido info empresa:", empresa)
-        if empresa in empresas_info:
-            info = empresas_info[empresa]
-            texto = (f"📌 <b>{empresa.title()}</b>\n\n"
-                     f"{info['summary']}\n"
-                     f"📍 Localização: {info['localizacao']}\n"
-                     f"📞 Contactos: {info['contactos']}")
-            return jsonify({"fulfillmentText": texto, "payload": {"telegram": {"text": texto, "parse_mode": "HTML"}}})
-        else:
-            return jsonify({"fulfillmentText": "Desculpa, não tenho informações sobre essa empresa."})
-
-    # Verifica se veio "fonte"
-    if "fonte" in parametros:
-        fonte = parametros.get("fonte")
-        print("Pedido noticias fonte:", fonte)
-        if fonte not in feeds:
-            return jsonify({"fulfillmentText": "Fonte não reconhecida. Tenta perguntar por outra fonte de informação."})
-        feed_info = feeds[fonte]
-
-        try:
-            resp = requests.get(feed_info["url"], timeout=3)
-            resp.raise_for_status()
-            feed = feedparser.parse(resp.content)
-        except requests.exceptions.Timeout:
-            return jsonify({"fulfillmentText": "O sistema está um pouco lento agora. Por favor, tenta outra vez daqui a pouco."})
-        except Exception:
-            return jsonify({"fulfillmentText": "Desculpa, ocorreu um erro ao buscar as informações. Tenta novamente mais tarde."})
-        
-        itens = feed.entries[:3]
-        if not itens:
-            resposta = f"Não encontrei atualizações em: {feed_info['descricao']}."
-        else:
-            lista = []
-            for item in itens:
-                data_str = "Data desconhecida"
-                if 'published_parsed' in item and item.published_parsed:
-                    try:
-                        dt = datetime(*item.published_parsed[:6])
-                        data_str = dt.strftime('%d/%m/%Y')
-                    except:
-                        pass
-                lista.append(f"🔹 <a href='{item.link}'>{item.title}</a> (Artigo do dia: {data_str})")
-            resposta = f"{feed_info['descricao']}:\n" + "\n".join(lista)
-        return jsonify({"fulfillmentText": resposta, "payload": {"telegram": {"text": resposta, "parse_mode": "HTML"}}})
+    fonte = req.get("queryResult", {}).get("parameters", {}).get("fonte")
     
-    # Resposta padrão
-    return jsonify({"fulfillmentText": "Desculpa, não entendi. Podes reformular?"})
+    if fonte not in feeds:
+        return jsonify({
+            "fulfillmentText": "❌ Fonte não reconhecida. Tenta perguntar por outra fonte de informação."
+        })
+    
+    feed_info = feeds[fonte]
+    
+    try:
+        resp = requests.get(feed_info["url"], timeout=3)
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.content)
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "fulfillmentText": "⏰ O sistema está um pouco lento agora\\. Por favor, tenta outra vez daqui a pouco\\."
+        })
+    except Exception as e:
+        return jsonify({
+            "fulfillmentText": "❌ Desculpa, ocorreu um erro ao buscar as informações\\. Tenta novamente mais tarde\\."
+        })
+    
+    itens = feed.entries[:3]
+    
+    if not itens:
+        resposta = f"📭 Não encontrei atualizações recentes em:\n*{escape_markdown(feed_info['descricao'])}*"
+    else:
+        lista = []
+        for i, item in enumerate(itens, 1):
+            data_str = "Data desconhecida"
+            if 'published_parsed' in item and item.published_parsed:
+                try:
+                    dt = datetime(*item.published_parsed[:6])
+                    data_str = dt.strftime('%d/%m/%Y às %H:%M')
+                except Exception:
+                    pass
+            elif 'updated_parsed' in item and item.updated_parsed:
+                try:
+                    dt = datetime(*item.updated_parsed[:6])
+                    data_str = dt.strftime('%d/%m/%Y às %H:%M')
+                except Exception:
+                    pass
+            
+            titulo = escape_markdown(item.title)
+            link = item.link
+            
+            # Layout melhorado para cada notícia
+            linha = f"📰 *{i}\\.*  [{titulo}]({link})\n⏰ {escape_markdown(data_str)}"
+            lista.append(linha)
+        
+        # Cabeçalho melhorado com separador visual
+        cabecalho = f"🗞️ *{escape_markdown(feed_info['descricao'])}*\n{'─' * 30}"
+        resposta = f"{cabecalho}\n\n" + "\n\n".join(lista)
+        
+        # Rodapé com informação adicional
+        resposta += f"\n\n📊 A mostrar as {len(itens)} notícias mais recentes"
+    
+    return jsonify({
+        "fulfillmentText": resposta,
+        "payload": {
+            "telegram": {
+                "text": resposta,
+                "parse_mode": "MarkdownV2"
+            }
+        }
+    })
 
 if __name__ == '__main__':
     app.run()
-
-
