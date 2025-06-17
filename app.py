@@ -12,8 +12,8 @@ with open("feeds.json", "r", encoding="utf-8") as f:
     feeds = json.load(f)
 
 def escape_markdown(text):
-    # Escapa os caracteres especiais para MarkdownV2 (Telegram)
-    escape_chars = r'_*[]()~`>#+-=|{}.!'
+    # Escapa os caracteres especiais para Markdown básico (Telegram via Dialogflow)
+    escape_chars = r'_*`['
     return ''.join(['\\' + c if c in escape_chars else c for c in text])
 
 @app.route('/webhook', methods=['POST'])
@@ -34,11 +34,11 @@ def webhook():
         feed = feedparser.parse(resp.content)
     except requests.exceptions.Timeout:
         return jsonify({
-            "fulfillmentText": "⏰ O sistema está um pouco lento agora\\. Por favor, tenta outra vez daqui a pouco\\."
+            "fulfillmentText": "⏰ O sistema está um pouco lento agora. Por favor, tenta outra vez daqui a pouco."
         })
     except Exception as e:
         return jsonify({
-            "fulfillmentText": "❌ Desculpa, ocorreu um erro ao buscar as informações\\. Tenta novamente mais tarde\\."
+            "fulfillmentText": "❌ Desculpa, ocorreu um erro ao buscar as informações. Tenta novamente mais tarde."
         })
     
     itens = feed.entries[:3]
@@ -66,11 +66,11 @@ def webhook():
             link = item.link
             
             # Layout melhorado para cada notícia
-            linha = f"📰 *{i}\\.*  [{titulo}]({link})\n⏰ {escape_markdown(data_str)}"
+            linha = f"📰 *{i}.* [{titulo}]({link})\n⏰ {escape_markdown(data_str)}"
             lista.append(linha)
         
         # Cabeçalho melhorado com separador visual
-        cabecalho = f"🗞️ *{escape_markdown(feed_info['descricao'])}*\n{'─' * 30}"
+        cabecalho = f"🗞️ *{escape_markdown(feed_info['descricao'])}*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         resposta = f"{cabecalho}\n\n" + "\n\n".join(lista)
         
         # Rodapé com informação adicional
@@ -81,7 +81,7 @@ def webhook():
         "payload": {
             "telegram": {
                 "text": resposta,
-                "parse_mode": "MarkdownV2"
+                "parse_mode": "Markdown"
             }
         }
     })
