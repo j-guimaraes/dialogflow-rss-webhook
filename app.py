@@ -36,17 +36,31 @@ empresas_info = {
 @app.route('/webhook', methods=['POST'])
 def webhook():
     req = request.get_json()
-    
-    # Pega a intenção (intent) e parâmetros do Dialogflow
-    intent = req.get("queryResult", {}).get("intent", {}).get("displayName")
+    print("Parâmetros recebidos:", req.get("queryResult", {}).get("parameters", {}))
+
     parametros = req.get("queryResult", {}).get("parameters", {})
-    
-    # Se for pedido de notícias via parâmetro "fonte"
+
+    # Verifica se veio "empresa"
+    empresa = parametros.get("empresa")
+    if empresa:
+        empresa = empresa.lower()
+        print("Pedido info empresa:", empresa)
+        if empresa in empresas_info:
+            info = empresas_info[empresa]
+            texto = (f"📌 <b>{empresa.title()}</b>\n\n"
+                     f"{info['summary']}\n"
+                     f"📍 Localização: {info['localizacao']}\n"
+                     f"📞 Contactos: {info['contactos']}")
+            return jsonify({"fulfillmentText": texto, "payload": {"telegram": {"text": texto, "parse_mode": "HTML"}}})
+        else:
+            return jsonify({"fulfillmentText": "Desculpa, não tenho informações sobre essa empresa."})
+
+    # Verifica se veio "fonte"
     if "fonte" in parametros:
         fonte = parametros.get("fonte")
+        print("Pedido noticias fonte:", fonte)
         if fonte not in feeds:
             return jsonify({"fulfillmentText": "Fonte não reconhecida. Tenta perguntar por outra fonte de informação."})
-
         feed_info = feeds[fonte]
 
         try:
@@ -75,20 +89,6 @@ def webhook():
             resposta = f"{feed_info['descricao']}:\n" + "\n".join(lista)
         return jsonify({"fulfillmentText": resposta, "payload": {"telegram": {"text": resposta, "parse_mode": "HTML"}}})
     
-    # Se for pergunta sobre empresa (intents específicas ou parâmetro "empresa")
-    empresa = parametros.get("empresa")
-    if empresa:
-        empresa = empresa.lower()
-        if empresa in empresas_info:
-            info = empresas_info[empresa]
-            texto = (f"📌 <b>{empresa.title()}</b>\n\n"
-                     f"{info['summary']}\n"
-                     f"📍 Localização: {info['localizacao']}\n"
-                     f"📞 Contactos: {info['contactos']}")
-            return jsonify({"fulfillmentText": texto, "payload": {"telegram": {"text": texto, "parse_mode": "HTML"}}})
-        else:
-            return jsonify({"fulfillmentText": "Desculpa, não tenho informações sobre essa empresa."})
-
     # Resposta padrão
     return jsonify({"fulfillmentText": "Desculpa, não entendi. Podes reformular?"})
 
