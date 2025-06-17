@@ -42,21 +42,23 @@ def webhook():
     else:
         lista = []
         for item in itens:
-            data_str = "Data desconhecida"  # default
-            
+            # Define data padrão
+            data_str = "Data desconhecida"
+    
+            # Tenta extrair data publicada
             if hasattr(item, 'published_parsed') and item.published_parsed:
                 try:
                     dt = datetime(*item.published_parsed[:6])
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
-            elif hasattr(item, 'published') and item.published:
+            elif hasattr(item, 'updated_parsed') and item.updated_parsed:
                 try:
-                    dt = datetime(*item.published[:6])
+                    dt = datetime(*item.updated_parsed[:6])
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
-            
+    
             lista.append(f"- {item.title} (Artigo do dia: {data_str}): {item.link}")
     
         resposta = f"{feed_info['descricao']}:\n" + "\n".join(lista)
