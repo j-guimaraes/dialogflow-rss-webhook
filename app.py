@@ -77,6 +77,7 @@ def webhook():
         resposta += f"\n\n📊 A mostrar as {len(itens)} notícias mais recentes"
     
     return jsonify({
+        "fulfillmentText": "",
         "payload": {
             "telegram": {
                 "text": resposta,
