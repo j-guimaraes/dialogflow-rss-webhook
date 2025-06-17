@@ -39,8 +39,18 @@ def webhook():
     if not itens:
         resposta = f"Não encontrei atualizações em: {feed_info['descricao']}."
     else:
-        lista = "\n".join([f"- {item.title}: {item.link}" for item in itens])
-        resposta = f"{feed_info['descricao']}:\n{lista}"
+        lista = []
+        for item in itens:
+            if hasattr(item, 'published'):
+                try:
+                    dt = datetime(*item.published_parsed[:6])
+                    data_str = dt.strftime('%d/%m/%Y')
+                except Exception:
+                    data_str = "Data desconhecida"
+            else:
+                data_str = "Data desconhecida"
+            lista.append(f"- {item.title} (Artigo do dia: {data_str}): {item.link}")
+        resposta = f"{feed_info['descricao']}:\n" + "\n".join(lista)
 
     return jsonify({"fulfillmentText": resposta})
 
