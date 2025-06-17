@@ -42,10 +42,9 @@ def webhook():
     else:
         lista = []
         for item in itens:
-            data_str = "Data desconhecida"
-            if hasattr(item, 'published_parsed') and item.published_parsed:
+            if hasattr(item, 'pubDate') and item.pubDate:
                 try:
-                    dt = datetime(*item.published_parsed[:6])
+                    dt = datetime(*item.pubDate[:6])
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
