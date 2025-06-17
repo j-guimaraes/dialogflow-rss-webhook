@@ -50,9 +50,9 @@ def webhook():
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
-            elif hasattr(item, 'updated_parsed') and item.updated_parsed:
+            elif hasattr(item, 'published') and item.published:
                 try:
-                    dt = datetime(*item.updated_parsed[:6])
+                    dt = datetime(*item.published[:6])
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
