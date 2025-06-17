@@ -42,9 +42,11 @@ def webhook():
     else:
         lista = []
         for item in itens:
-            if hasattr(item, 'pubDate') and item.pubDate:
+            data_str = "Data desconhecida"  # default
+            
+            if hasattr(item, 'published_parsed') and item.published_parsed:
                 try:
-                    dt = datetime(*item.pubDate[:6])
+                    dt = datetime(*item.published_parsed[:6])
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
@@ -54,12 +56,9 @@ def webhook():
                     data_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
-        
+            
             lista.append(f"- {item.title} (Artigo do dia: {data_str}): {item.link}")
-
-            else:
-                data_str = "Data desconhecida"
-            lista.append(f"- {item.title} (Artigo do dia: {data_str}): {item.link}")
+    
         resposta = f"{feed_info['descricao']}:\n" + "\n".join(lista)
 
     return jsonify({"fulfillmentText": resposta})
