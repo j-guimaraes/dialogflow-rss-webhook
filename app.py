@@ -77,14 +77,25 @@ def webhook():
         resposta += f"\n\n📊 A mostrar as {len(itens)} notícias mais recentes"
     
     return jsonify({
-        "fulfillmentText": "",
-        "payload": {
-            "telegram": {
-                "text": resposta,
-                "parse_mode": "Markdown"
+        "fulfillmentText": resposta,
+        "fulfillmentMessages": [
+            {
+                "platform": "TELEGRAM",
+                "text": {
+                    "text": [resposta]
+                }
+            },
+            {
+                "platform": "TELEGRAM",
+                "payload": {
+                    "telegram": {
+                        "text": resposta,
+                        "parse_mode": "Markdown"
+                    }
+                }
             }
-        }
+        ]
     })
-
+    
 if __name__ == '__main__':
     app.run()
