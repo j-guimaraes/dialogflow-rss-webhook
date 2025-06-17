@@ -80,12 +80,6 @@ def webhook():
         "fulfillmentMessages": [
             {
                 "platform": "TELEGRAM",
-                "text": {
-                    "text": [resposta]
-                }
-            },
-            {
-                "platform": "TELEGRAM",
                 "payload": {
                     "telegram": {
                         "text": resposta,
